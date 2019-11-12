@@ -51,6 +51,9 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
 int pass_store_add_user(const char *username, const char *password)
 {
   int ret = 0;
+  user_pass_t **passwords = NULL;
+  size_t *num_pass_out = NULL;
+  pass_store_load(passwords, num_pass_out)
   ///////////////////////////////////////
   //// GENERATE THE SALT FROM RAND //////
   ///////////////////////////////////////
@@ -127,15 +130,17 @@ int pass_store_add_user(const char *username, const char *password)
   new_pass_entry.salt = salt;
 
   ///////////////////////////////////////////////////
-  /// NEED TO ADD new_pass_entry TO THE PASSWORDS ///
+  /// NEED TO ADD new_pass_entry TO **passwords /////
   /// AND NEED TO ADD THE STRING BELOW TO THE TXT ///
   ///////////////////////////////////////////////////
   
   // the string format is below, the struct is above. I don't have 
   // it set up correctly with her helper functions
+  // Dr. Al Moakar wanted us to be using the password 
+  // struct array and writing to the txt file
 
   // username:$6$[encoded password salt]$[encoded salted password hash]
-  
+  pass_store_save(passwords, num_pass_out + 1, 1)
   
   // Finally, free the BIO objects
   BIO_free_all(b64_salt_bio);
