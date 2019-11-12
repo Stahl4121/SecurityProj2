@@ -30,12 +30,69 @@ typedef struct user_pass_s {
 
 static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
 {
-  return 0;
+  int ret = -1;
+  int idx = 0;
+  char *line = NULL;
+  size_t len = 0;
+  num_pass_out = 0;
+
+  FILE *pass_file = fopen(PASS_FILE_PATH, "r");
+  if(!pass_file) goto cleanup;
+
+  //Count number of passwords for purposes of mem allocation
+  while(getline(&line, &len, pass_file) != -1) {
+    num_pass_out = num_pass_out + 1;
+  }
+  fseek(pass_file, 0, SEEK_SET);
+
+  fprintf(stderr, "%zu", num_pass_out);
+
+  passwords_out = malloc(sizeof(struct user_pass_s) * num_pass_out);
+  if(!passwords_out) goto cleanup;
+
+  while(getline(&line, &len, pass_file) != -1) {
+    struct user_pass_s user;
+
+    user.username[0] = strsep(&line, ":"); //Load Username
+    strsep(&line, "$");                    //Clear $ before the hashID
+    strsep(&line, "$");                    //Clear hashID
+    user.salt[0] = strsep(&line, "$");     //Load salt
+    user.pass_hash[0] = &line              //Load password hash as the remainder of the string
+
+    fprintf(stderr, "%s  ||  %s  ||  %s", user.username, user.salt, user.pass_hash);
+
+    passwords_out[idx] = user;
+    idx = idx + 1;
+  }
+
+  ret = 0;
+
+  cleanup:
+    fclose(pass_file);
+    free(line);
+    //Remove later
+    free(passwords_out);
+  
+  return ret;
 }
 
 
 static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append)
 {
+  passFile = fopen(PASS_FILE_PATH, "w"); //Clear current file
+  passFile = freopen(PASS_FILE_PATH, "a"); //Reopen in append mode
+
+  if(!passFile){
+    fclose(passFile);
+    return -1;
+  }
+
+  for(int i=0; i < num_pass; i++){
+    fprintf(passFile, "%s:$6$%s$%s\n", passwords[i].username, passwords[i].salt, passwords[i].pass_hash);
+  }
+  
+  fclose(passFile);
+
   return 0;
 }
 
@@ -51,9 +108,9 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
 int pass_store_add_user(const char *username, const char *password)
 {
   int ret = 0;
-  user_pass_t **passwords = NULL;
-  size_t *num_pass_out = NULL;
-  pass_store_load(passwords, num_pass_out)
+  user_pass_t *passwords = NULL;
+  size_t num_pass_out = 0;
+  pass_store_load(&passwords, &num_pass_out);
   ///////////////////////////////////////
   //// GENERATE THE SALT FROM RAND //////
   ///////////////////////////////////////
@@ -167,6 +224,7 @@ int pass_store_remove_user(const char *username)
 
   // resave the struct/password file
 
+
   return 0;
 }
 
@@ -188,6 +246,10 @@ int pass_store_check_password(const char *username, const char *password)
 
   // instead of setting username to NULL, compare the above encoded generation
   // of the password with the username's stored password.
+  
+  user_pass_t *passwords = NULL;
+  size_t num_pass_out = 0;
+  pass_store_load(&passwords, &num_pass_out);
 
   return 0;
 }
