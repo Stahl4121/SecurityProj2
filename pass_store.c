@@ -50,17 +50,21 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
  */
 int pass_store_add_user(const char *username, const char *password)
 {
+  int ret = 0;
   ///////////////////////////////////////
-  //// SALT AND HASH THE PASSWORD ///////
+  //// GENERATE THE SALT FROM RAND //////
   ///////////////////////////////////////
-
+  fprintf(stderr, "in pass_store_add_user \n");
   // create password's salt
-  unsigned char *salt = NULL;
-  if(!RAND_bytes(salt, SALT_LEN)) {
-    fprintf(stderr, "rand bytes didn't return properly");
-    // free salt
-    salt = NULL;
-  }
+  unsigned char salt[SALT_LEN];
+  fprintf(stderr, "after salt = null \n");
+  if(!RAND_bytes(salt, SALT_LEN)) ret = -1; 
+  fprintf(stderr, "the salt is: %s", salt);
+
+  //////////////////////////////
+  /// BASE64 ENCODE THE SALT ///
+  //////////////////////////////
+  
   // Base64 filter
   BIO *b64_salt_bio = BIO_new(BIO_f_base64());
   // Memory buffer sink
@@ -75,65 +79,68 @@ int pass_store_add_user(const char *username, const char *password)
   BIO_flush(b64_salt_bio);
 
   // Get pointer and length of data in the memory buffer sink
-  char *b64_salt = NULL;
-  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)) {
-    fprintf(stderr, "salt len base 64 doesn't have correct length");
-    // free salt and b64_salt
-    free(salt);
-    free(b64_salt);
-    // free bios
-    BIO_free(b64_salt_bio);
-    BIO_free(enc_salt_bio);
-  }
+  char *b64_salt[SALT_LEN_BASE64];
+  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)) ret = -1;
   fprintf(stderr, "base64 salt: %s", b64_salt);
-
-  // concatenate password and base64 salt
+  
+  ///////////////////////////////////////////
+  // CONCATENATE PASSWORD AND BASE64 SALT ///
+  ///////////////////////////////////////////
   int pass_len = strlen(password);
-  char pass_and_salt[pass_len + SALT_LEN_BASE64];
-  int pass_and_salt_len = pass_len + SALT_LEN_BASE64;
+  int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
+  char pass_and_salt[pass_and_salt_len];
   strncat(pass_and_salt, password, pass_len);
   strncat(pass_and_salt, b64_salt, SALT_LEN_BASE64);
   fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
-  /*
-  ///////////////////////////////////////////////
-  /// B64 USERNAME WITH SALTED PASSWORD HASH ////
-  ///////////////////////////////////////////////
   
-  // sample buffer with data to Base64 encode
-  uint8_t buf[24];
-
+  ////////////////////////////////////////
+  /// SHA 512 PASSWORD AND BASE64 SALT ///
+  ////////////////////////////////////////
+  char *sha_pass_salt[SHA512_DIGEST_LENGTH];
+  SHA512(pass_and_salt, pass_and_salt_len, sha_pass_salt);
+  
+  /////////////////////////////////////////////////////////
+  /// B64 THE SHA512 USERNAME WITH SALTED PASSWORD HASH ///
+  /////////////////////////////////////////////////////////
+  
   // Base64 filter
   BIO *b64_salt_and_pass_bio = BIO_new(BIO_f_base64());
-
   // Memory buffer sink
   BIO *enc_salt_and_pass_bio = BIO_new(BIO_s_mem());
-
   // chain the Base64 filter to the memory buffer sink
   BIO_push(b64_salt_and_pass_bio, enc_salt_and_pass_bio);
-
   // Base64 encoding by default contains new lines.
   // Do not output new lines.
   BIO_set_flags(b64_salt_and_pass_bio, BIO_FLAGS_BASE64_NO_NL);
-
   // Input data into the Base64 filter and flush the filter.
-  BIO_write(b64_salt_and_pass_bio, pass_and_salt, pass_and_salt_len);
+  BIO_write(b64_salt_and_pass_bio, sha_pass_salt, SHA512_DIGEST_LENGTH);
   BIO_flush(b64_salt_and_pass_bio);
 
   // Get pointer and length of data in the memory buffer sink
-  char *b64_pass_and_salt = NULL;
-  long b64_pass_and_salt_len = BIO_get_mem_data(enc_salt_and_pass_bio, &b64_pass_and_salt);
+  char *b64_pass_and_salt[SHA512_DIGEST_LENGTH_BASE64];
+  BIO_get_mem_data(enc_salt_and_pass_bio, &b64_pass_and_salt);
 
-  // Finally, free the BIO objects
-  BIO_free_all(b64_bio);
+  
+  struct user_pass_t new_pass_entry;
+  new_pass_entry.username = username;
+  new_pass_entry.pass_hash = b64_pass_and_salt;
+  new_pass_entry.salt = salt;
+
+  ///////////////////////////////////////////////////
+  /// NEED TO ADD new_pass_entry TO THE PASSWORDS ///
+  /// AND NEED TO ADD THE STRING BELOW TO THE TXT ///
+  ///////////////////////////////////////////////////
+  
+  // the string format is below, the struct is above. I don't have 
+  // it set up correctly with her helper functions
 
   // username:$6$[encoded password salt]$[encoded salted password hash]
-
+  
+  
   // Finally, free the BIO objects
-  BIO_free_all(b64_bio);
-  */
+  BIO_free_all(b64_salt_bio);
+  BIO_free_all(b64_salt_and_pass_bio);
 
-  cleanup:
-    fprintf(stderr, "IN CLEANUP");
   return 0;
 }
 
