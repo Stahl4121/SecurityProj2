@@ -154,9 +154,13 @@ int pass_store_add_user(const char *username, const char *password)
  */
 int pass_store_remove_user(const char *username)
 {
-  // FIND USER
+  // load all the users into the array of structs
 
-  // DELETE USER NAME FROM THE PASSWORD
+  // iterate through them to find the user
+
+  // set USERNAME to NULL in the array
+
+  // resave the struct/password file
 
   return 0;
 }
@@ -172,40 +176,13 @@ int pass_store_remove_user(const char *username)
  */
 int pass_store_check_password(const char *username, const char *password)
 {
-  ///////////////////////////////////////
-  //// SALT AND HASH THE PASSWORD ///////
-  ///////////////////////////////////////
+  // copy paste from the pass_store_add_user to regenerate the 
+  // encoded password
 
-  // sample buffer already populate with data to Base64 decode
-  uint8_t buf[32];
-  // output buffer
-  uint8_t out_buf[24];
+  // then copy paste from pass_store_remove_user to find the user
 
-  /////////////////////////////////////////////
-  //// FILL buf WITH THE CORRECT STUFF ////
-  /////////////////////////////////////////////
-
-
-  // Memory buffer source
-  BIO *enc_bio = BIO_new_mem_buf(buf, 32);
-  // Base64 filter
-  BIO *b64_bio = BIO_new(BIO_f_base64());
-  // Chain the memory buffer source to the Base64 filter
-  BIO_push(b64_bio, enc_bio);
-  // Base64 encoding by default contains new lines.
-  // This Base64 encoded data doesn’t have new lines.
-  BIO_set_flags(b64_bio, BIO_FLAGS_BASE64_NO_NL);
-  // Extract decoded data from Base64 filter into output buffer
-  int num_read = BIO_read(b64_bio, out_buf, 24);
-
-  ///////////////////////////////////////////////
-  /// compare USERNAME's PASSWORD w/ the stored one ////
-  ///////////////////////////////////////////////
-
-  // username:$6$[encoded password salt]$[encoded salted password hash]
-
-  // Finally, free the BIO objects
-  BIO_free_all(b64_bio);
+  // instead of setting username to NULL, compare the above encoded generation
+  // of the password with the username's stored password.
 
   return 0;
 }
