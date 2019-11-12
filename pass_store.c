@@ -54,41 +54,86 @@ int pass_store_add_user(const char *username, const char *password)
   //// SALT AND HASH THE PASSWORD ///////
   ///////////////////////////////////////
 
+  // create password's salt
+  unsigned char *salt = NULL;
+  if(!RAND_bytes(salt, SALT_LEN)) {
+    fprintf(stderr, "rand bytes didn't return properly");
+    // free salt
+    salt = NULL;
+  }
+  // Base64 filter
+  BIO *b64_salt_bio = BIO_new(BIO_f_base64());
+  // Memory buffer sink
+  BIO *enc_salt_bio = BIO_new(BIO_s_mem());
+  // chain the Base64 filter to the memory buffer sink
+  BIO_push(b64_salt_bio, enc_salt_bio);
+  // Base64 encoding by default contains new lines.
+  // Do not output new lines.
+  BIO_set_flags(b64_salt_bio, BIO_FLAGS_BASE64_NO_NL);
+  // Input salt into the Base64 filter and flush the filter.
+  BIO_write(b64_salt_bio, salt, SALT_LEN);
+  BIO_flush(b64_salt_bio);
+
+  // Get pointer and length of data in the memory buffer sink
+  char *b64_salt = NULL;
+  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)) {
+    fprintf(stderr, "salt len base 64 doesn't have correct length");
+    // free salt and b64_salt
+    free(salt);
+    free(b64_salt);
+    // free bios
+    BIO_free(b64_salt_bio);
+    BIO_free(enc_salt_bio);
+  }
+  fprintf(stderr, "base64 salt: %s", b64_salt);
+
+  // concatenate password and base64 salt
+  int pass_len = strlen(password);
+  char pass_and_salt[pass_len + SALT_LEN_BASE64];
+  int pass_and_salt_len = pass_len + SALT_LEN_BASE64;
+  strncat(pass_and_salt, password, pass_len);
+  strncat(pass_and_salt, b64_salt, SALT_LEN_BASE64);
+  fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
+  /*
+  ///////////////////////////////////////////////
+  /// B64 USERNAME WITH SALTED PASSWORD HASH ////
+  ///////////////////////////////////////////////
+  
   // sample buffer with data to Base64 encode
   uint8_t buf[24];
 
-  
-  /////////////////////////////////////////////
-  //// FILL buf WITH THE CORRECT STUFF ////
-  /////////////////////////////////////////////
-
-
   // Base64 filter
-  BIO *b64_bio = BIO_new(BIO_f_base64());
+  BIO *b64_salt_and_pass_bio = BIO_new(BIO_f_base64());
+
   // Memory buffer sink
-  BIO *enc_bio = BIO_new(BIO_s_mem());
+  BIO *enc_salt_and_pass_bio = BIO_new(BIO_s_mem());
+
   // chain the Base64 filter to the memory buffer sink
-  BIO_push(b64_bio, enc_bio);
+  BIO_push(b64_salt_and_pass_bio, enc_salt_and_pass_bio);
+
   // Base64 encoding by default contains new lines.
   // Do not output new lines.
-  BIO_set_flags(b64_bio, BIO_FLAGS_BASE64_NO_NL);
+  BIO_set_flags(b64_salt_and_pass_bio, BIO_FLAGS_BASE64_NO_NL);
+
   // Input data into the Base64 filter and flush the filter.
-  BIO_write(b64_bio, buf, 24);
-  BIO_flush(b64_bio);
+  BIO_write(b64_salt_and_pass_bio, pass_and_salt, pass_and_salt_len);
+  BIO_flush(b64_salt_and_pass_bio);
 
   // Get pointer and length of data in the memory buffer sink
-  char *data_ptr = NULL;
-  long data_len = BIO_get_mem_data(enc_bio, &data_ptr);
+  char *b64_pass_and_salt = NULL;
+  long b64_pass_and_salt_len = BIO_get_mem_data(enc_salt_and_pass_bio, &b64_pass_and_salt);
 
-  ///////////////////////////////////////////////
-  /// ADD USERNAME WITH SALTED PASSWORD HASH ////
-  ///////////////////////////////////////////////
+  // Finally, free the BIO objects
+  BIO_free_all(b64_bio);
 
   // username:$6$[encoded password salt]$[encoded salted password hash]
 
   // Finally, free the BIO objects
   BIO_free_all(b64_bio);
+  */
 
+  cleanup:
+    fprintf(stderr, "IN CLEANUP");
   return 0;
 }
 
