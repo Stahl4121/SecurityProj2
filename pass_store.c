@@ -249,14 +249,23 @@ int pass_store_add_user(const char *username, const char *password)
 int pass_store_remove_user(const char *username)
 {
   // load all the users into the array of structs
+  user_pass_t *passwords = NULL;
+  size_t num_pass_out = 0;
+  __pass_store_load(&passwords, &num_pass_out);
 
+  ////////////////////////////////
+  /// CHECK FOR GIVEN USERNAME ///
+  ////////////////////////////////
+ 
   // iterate through them to find the user
-
-  // set USERNAME to NULL in the array
-
+  for(int i = 0; i < num_pass_out; i++) {
+    // set USERNAME to NULL in the array
+    if(username == passwords[i].username) {
+        memset(passwords[i].username, 0, strlen(username));
+      }
+  }
   // resave the struct/password file
-
-
+  __pass_store_save(passwords, num_pass_out, 0);
   return 0;
 }
 
@@ -271,20 +280,89 @@ int pass_store_remove_user(const char *username)
  */
 int pass_store_check_password(const char *username, const char *password)
 {
-  // check that username exists
-
-  // copy paste from the pass_store_add_user to regenerate the 
-  // encoded password
-
-  // then copy paste from pass_store_remove_user to find the user
-
-  // instead of setting username to NULL, compare the above encoded generation
-  // of the password with the username's stored password.
-  
+  int ret = 0;
+  int username_exists = 0;
   user_pass_t *passwords = NULL;
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
+  uint8_t correct_pass_hash[SHA512_DIGEST_LENGTH];
+  ////////////////////////////////
+  /// CHECK IF USERNAME EXISTS ///
+  ////////////////////////////////
+  for(int i = 0; i < num_pass_out; i++) {
+    if(username == passwords[i].username) { 
+      username_exists = 1;
+      memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
+    }
+  }
 
-  return 0;
+  ///////////////////////////
+  /// ENCODE THE PASSWORD ///
+  ///////////////////////////
+  if(username_exists) {
+    //////////////////////////////////////
+    /// GENERATE THE SALT FROM RAND //////
+    //////////////////////////////////////
+    
+    //fprintf(stderr, "in pass_store_add_user \n");
+    // create password's salt
+    unsigned char salt[SALT_LEN];
+    //fprintf(stderr, "after salt = null \n");
+    if(!RAND_bytes(salt, SALT_LEN)) ret = -1; 
+    //fprintf(stderr, "the salt is: %s", salt);
+
+    //////////////////////////////
+    /// BASE64 ENCODE THE SALT ///
+    //////////////////////////////
+    
+    // Base64 filter
+    BIO *b64_salt_bio = BIO_new(BIO_f_base64());
+    // Memory buffer sink
+    BIO *enc_salt_bio = BIO_new(BIO_s_mem());
+    // chain the Base64 filter to the memory buffer sink
+    BIO_push(b64_salt_bio, enc_salt_bio);
+    // Base64 encoding by default contains new lines.
+    // Do not output new lines.
+    BIO_set_flags(b64_salt_bio, BIO_FLAGS_BASE64_NO_NL);
+    // Input salt into the Base64 filter and flush the filter.
+    BIO_write(b64_salt_bio, salt, SALT_LEN);
+    BIO_flush(b64_salt_bio);
+
+    // Get pointer and length of data in the memory buffer sink
+    unsigned char b64_salt[SALT_LEN_BASE64];
+    if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)) ret = -1;
+    //fprintf(stderr, "base64 salt: %s", b64_salt);
+    
+    ///////////////////////////////////////////
+    // CONCATENATE PASSWORD AND BASE64 SALT ///
+    ///////////////////////////////////////////
+    int pass_len = strlen(password);
+    int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
+    unsigned char *pass_and_salt;
+    pass_and_salt = malloc(sizeof(pass_and_salt_len));
+    memcpy(pass_and_salt, password, pass_len);
+    memcpy(pass_and_salt, b64_salt, SALT_LEN_BASE64);
+    //fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
+    
+    ////////////////////////////////////////
+    /// SHA 512 PASSWORD AND BASE64 SALT ///
+    ////////////////////////////////////////
+    uint8_t sha_pass_salt[SHA512_DIGEST_LENGTH];
+    SHA512(pass_and_salt, pass_and_salt_len, (unsigned char*)sha_pass_salt);
+    
+    ////////////////////////////////////////////////////////
+    // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
+    ////////////////////////////////////////////////////////
+    if(sha_pass_salt != correct_pass_hash) {
+      ret = -1;
+    }
+
+    // Finally, free the BIO objects
+    BIO_free_all(b64_salt_bio);
+  } else {
+    ret = -1;
+  }
+  
+  return ret;
 }
 
