@@ -30,7 +30,6 @@ typedef struct user_pass_s {
 
 static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
 {
-  int ret = -1;
   int idx = 0;
   char *lineBuf = NULL;
   size_t len = 0;
@@ -38,7 +37,10 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
   user_pass_t *retPasswords = (*passwords_out);
 
   FILE *pass_file = fopen(PASS_FILE_PATH, "r");
-  if(!pass_file) goto cleanup;
+  if(!pass_file){
+    fclose(pass_file);
+    return -1;
+  }
 
   //Count number of passwords for purposes of mem allocation
   while(getline(&lineBuf, &len, pass_file) != -1) {
@@ -49,11 +51,16 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
   fprintf(stderr, "%zu", num_pass);
 
   retPasswords = malloc(sizeof(user_pass_t) * num_pass);
-  if(!retPasswords) goto cleanup;
+  if(!retPasswords){
+    fclose(pass_file);
+    return -1;
+  }
 
   while(getline(&lineBuf, &len, pass_file) != -1) {
     /////////////////////////////////////////////////////////
     //Is this doubly allocating?????
+    //Need to null terminate pass hash?
+    //Must decode stored base64 into struct?
     /////////////////////////////////////////////////////////
 
     user_pass_t *user = malloc(sizeof(user_pass_t));
@@ -72,8 +79,30 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
     memcpy((*user).salt, strPtr, bytes);      //Copy username into struct
 
     strPtr = line; //Load password hash as the remainder of the string
-    bytes = (( ((char*)line) - ((char*)strPtr) ) * sizeof(char));   //Get length of password hash
-    memcpy((*user).pass_hash, strPtr, SHA512_DIGEST_LENGTH*sizeof(char)); //Copy pass_hash into struct
+    bytes = SHA512_DIGEST_LENGTH*sizeof(char);   //Get length of password hash
+
+    /*
+    *   Decode Base64 encoding from stored password hash 
+    */
+    // Memory buffer source
+    BIO *enc_bio = BIO_new_mem_buf(strPtr, SHA512_DIGEST_LENGTH_BASE64);
+    // Base64 filter
+    BIO *b64_bio = BIO_new(BIO_f_base64());
+    // Chain the memory buffer source to the Base64 filter
+    BIO_push(b64_bio, enc_bio);
+    // Base64 encoding by default contains new lines.
+    // This Base64 encoded data doesn’t have new lines.
+    BIO_set_flags(b64_bio, BIO_FLAGS_BASE64_NO_NL);
+    // Extract decoded data from Base64 filter into output buffer
+    int num_read = BIO_read(b64_bio, (*user).pass_hash, bytes);
+    if(num_read <= 0) {
+      fclose(pass_file);
+      free(lineBuf);
+      BIO_free_all(b64_bio);
+      return -1;
+    }
+    // Finally, free the BIO objects
+    BIO_free_all(b64_bio);
 
     fprintf(stderr, "%s  ||  %s  ||  %s\n", (*user).username, (*user).salt, (*user).pass_hash);
 
@@ -81,16 +110,14 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
     idx = idx + 1;
   }
 
-  ret = 0;
+  //Close file and free memory buffer
+  fclose(pass_file);
+  free(lineBuf);
 
   //Update num_pass_out
   num_pass_out = &num_pass;
 
-  cleanup:
-    fclose(pass_file);
-    free(lineBuf);
-  
-  return ret;
+  return 0;
 }
 
 
