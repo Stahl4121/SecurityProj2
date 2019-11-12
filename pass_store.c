@@ -112,8 +112,8 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
 
 static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append)
 {
-  FILE *tempFile = fopen("passwords333", "w");              //Clear current file
-  FILE *passFile = freopen("passwords333", "a", tempFile);  //Reopen in append mode
+  FILE *tempFile = fopen(PASS_FILE_PATH, "w");              //Clear current file
+  FILE *passFile = freopen(PASS_FILE_PATH, "a", tempFile);  //Reopen in append mode
 
   if(!passFile){
     fclose(passFile);
