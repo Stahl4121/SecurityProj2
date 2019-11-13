@@ -343,17 +343,12 @@ int pass_store_check_password(const char *username, const char *password)
   /// GENERATE THE SALT FROM RAND //////
   //////////////////////////////////////
   
-  //fprintf(stderr, "in pass_store_add_user \n");
   // create password's salt
   unsigned char salt[SALT_LEN];
-  //fprintf(stderr, "after salt = null \n");
   if(!RAND_bytes(salt, SALT_LEN)){
     return -1;
   }
-    
-
-  //fprintf(stderr, "the salt is: %s", salt);
-
+  
   //////////////////////////////
   /// BASE64 ENCODE THE SALT ///
   //////////////////////////////
@@ -377,7 +372,6 @@ int pass_store_check_password(const char *username, const char *password)
     BIO_free_all(b64_salt_bio);    
     return -1;
   }
-  //fprintf(stderr, "base64 salt: %s", b64_salt);
   
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
@@ -388,7 +382,6 @@ int pass_store_check_password(const char *username, const char *password)
   pass_and_salt = malloc(sizeof(pass_and_salt_len));
   memcpy(pass_and_salt, password, pass_len);
   memcpy(pass_and_salt, b64_salt, SALT_LEN_BASE64);
-  //fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -399,10 +392,11 @@ int pass_store_check_password(const char *username, const char *password)
   ////////////////////////////////////////////////////////
   // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
   ////////////////////////////////////////////////////////
-  if(sha_pass_salt != correct_pass_hash) {
+  if(!strcmp((const char*)sha_pass_salt, (const char*)correct_pass_hash)) {
+    fprintf(stderr, "that was the correct password! \n");
     BIO_free_all(b64_salt_bio);
     free(pass_and_salt);   
-    return -1;
+    return 0;
   }
 
   // Finally, free the BIO objects
@@ -410,6 +404,6 @@ int pass_store_check_password(const char *username, const char *password)
   free(pass_and_salt);   
   
   
-  return 0;
+  return -1;
 }
 
