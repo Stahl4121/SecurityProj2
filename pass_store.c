@@ -190,7 +190,7 @@ int pass_store_add_user(const char *username, const char *password)
   /////////////////////////////////////
   /// CHECK FOR DUPLICATE USERNAMES ///
   /////////////////////////////////////
-  for(int i = 0; i < num_pass_out; i++) {
+  for(int i = 0; i < (int) num_pass_out; i++) {
     if(!strcmp(username, passwords[i].username)){
       fprintf(stderr, "A user named %s already exists!", username);
       free(passwords);
@@ -291,9 +291,9 @@ int pass_store_remove_user(const char *username)
   ////////////////////////////////
  
   // iterate through them to find the user
-  for(int i = 0; i < num_pass_out; i++) {
+  for(int i = 0; i < (int) num_pass_out; i++) {
     // set USERNAME to NULL in the array
-    if(username == passwords[i].username) {
+    if(!strcmp(username, passwords[i].username)){}
         memset(passwords[i].username, 0, strlen(username));
       }
   }
@@ -322,8 +322,8 @@ int pass_store_check_password(const char *username, const char *password)
   ////////////////////////////////
   /// CHECK IF USERNAME EXISTS ///
   ////////////////////////////////
-  for(int i = 0; i < num_pass_out; i++) {
-    if(username == passwords[i].username) { 
+  for(int i = 0; i < (int) num_pass_out; i++) {
+    if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
     }
