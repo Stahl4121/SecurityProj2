@@ -206,7 +206,11 @@ int pass_store_add_user(const char *username, const char *password)
   // create password's salt
   unsigned char salt[SALT_LEN];
   //fprintf(stderr, "after salt = null \n");
-  if(!RAND_bytes(salt, SALT_LEN)) ret = -1; 
+  if(!RAND_bytes(salt, SALT_LEN)) {
+    fprintf(stderr, "Salt generated incorrectly");
+    free(passwords);
+    return -1;
+  }
   //fprintf(stderr, "the salt is: %s", salt);
 
   //////////////////////////////
@@ -238,8 +242,9 @@ int pass_store_add_user(const char *username, const char *password)
   int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(sizeof(pass_and_salt_len));
+  memset(pass_and_salt, 0, sizeof(pass_and_salt_len));
   memcpy(pass_and_salt, password, pass_len);
-  memcpy(pass_and_salt, b64_salt, SALT_LEN_BASE64);
+  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64);
   //fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
   
   ////////////////////////////////////////
@@ -267,7 +272,7 @@ int pass_store_add_user(const char *username, const char *password)
   ///////////////////////////////////////////////////
   
   __pass_store_save(&new_pass_entry, 1, 1);
-  
+  free(passwords);
   
   return ret;
 }
@@ -300,6 +305,8 @@ int pass_store_remove_user(const char *username)
   }
   // resave the struct/password file
   __pass_store_save(passwords, num_pass_out, 0);
+  free(passwords);
+
   return 0;
 }
 
@@ -319,7 +326,7 @@ int pass_store_check_password(const char *username, const char *password)
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
   uint8_t correct_pass_hash[SHA512_DIGEST_LENGTH];
-  unsigned char salt[SALT_LEN];
+  unsigned char b64_salt[SALT_LEN_BASE64+1];
 
   ////////////////////////////////
   /// CHECK IF USERNAME EXISTS ///
@@ -328,7 +335,7 @@ int pass_store_check_password(const char *username, const char *password)
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
-      memcpy(salt, passwords[i].salt, SALT_LEN);
+      memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64+1);
       fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
     }
   }
@@ -341,30 +348,6 @@ int pass_store_check_password(const char *username, const char *password)
   ///////////////////////////
   /// ENCODE THE PASSWORD ///
   ///////////////////////////
-
-  //////////////////////////////
-  /// BASE64 ENCODE THE SALT ///
-  //////////////////////////////
-  
-  // Base64 filter
-  BIO *b64_salt_bio = BIO_new(BIO_f_base64());
-  // Memory buffer sink
-  BIO *enc_salt_bio = BIO_new(BIO_s_mem());
-  // chain the Base64 filter to the memory buffer sink
-  BIO_push(b64_salt_bio, enc_salt_bio);
-  // Base64 encoding by default contains new lines.
-  // Do not output new lines.
-  BIO_set_flags(b64_salt_bio, BIO_FLAGS_BASE64_NO_NL);
-  // Input salt into the Base64 filter and flush the filter.
-  BIO_write(b64_salt_bio, salt, SALT_LEN);
-  BIO_flush(b64_salt_bio);
-
-  // Get pointer and length of data in the memory buffer sink
-  unsigned char b64_salt[SALT_LEN_BASE64];
-  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)){
-    BIO_free_all(b64_salt_bio);    
-    return -1;
-  }
   
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
@@ -373,8 +356,9 @@ int pass_store_check_password(const char *username, const char *password)
   int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(sizeof(pass_and_salt_len));
+  memset(pass_and_salt, 0, sizeof(pass_and_salt_len));
   memcpy(pass_and_salt, password, pass_len);
-  memcpy(pass_and_salt, b64_salt, SALT_LEN_BASE64);
+  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -389,7 +373,6 @@ int pass_store_check_password(const char *username, const char *password)
   ////////////////////////////////////////////////////////
   if(!strcmp((const char*)sha_pass_salt, (const char*)correct_pass_hash)) {
     fprintf(stderr, "that was the correct password! \n");
-    BIO_free_all(b64_salt_bio);
     free(pass_and_salt);   
     return 0;
   } else {
@@ -397,10 +380,9 @@ int pass_store_check_password(const char *username, const char *password)
 
   }
 
-  // Finally, free the BIO objects
-  BIO_free_all(b64_salt_bio);
+  // Finally, free the objects
   free(pass_and_salt);   
-  
+  free(passwords);
   
   return -1;
 }
