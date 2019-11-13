@@ -293,7 +293,7 @@ int pass_store_remove_user(const char *username)
   // iterate through them to find the user
   for(int i = 0; i < (int) num_pass_out; i++) {
     // set USERNAME to NULL in the array
-    if(!strcmp(username, passwords[i].username)){}
+    if(!strcmp(username, passwords[i].username)){
         memset(passwords[i].username, 0, strlen(username));
       }
   }
