@@ -273,6 +273,7 @@ int pass_store_add_user(const char *username, const char *password)
   ///////////////////////////////////////////////////
   
   __pass_store_save(&new_pass_entry, 1, 1);
+  free(pass_and_salt);
   free(passwords);
   
   return 0;
@@ -309,6 +310,8 @@ int pass_store_remove_user(const char *username)
 
   if(!userFound){
     fprintf(stderr, "There is no user \"%s\" to remove.\n", username);
+    free(passwords);
+    return -1;
   }
 
   // resave the struct/password file
