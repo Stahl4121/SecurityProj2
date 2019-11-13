@@ -232,18 +232,20 @@ int pass_store_add_user(const char *username, const char *password)
     BIO_free_all(b64_salt_bio);
     return -1;
   }
+  b64_salt[SALT_LEN_BASE64]='\0';
+
   //fprintf(stderr, "base64 salt: %s", b64_salt);
   
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
   ///////////////////////////////////////////
   int pass_len = strlen(password) * sizeof(char);
-  int pass_and_salt_len = pass_len + SALT_LEN_BASE64;
+  int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(pass_and_salt_len);
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
-  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64);
+  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64 + 1);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -256,7 +258,7 @@ int pass_store_add_user(const char *username, const char *password)
   memset(&new_pass_entry, 0, sizeof(new_pass_entry));
   strncpy(new_pass_entry.username, username, strlen(username));
   memcpy(new_pass_entry.pass_hash, sha_pass_salt, SHA512_DIGEST_LENGTH);
-  memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64);
+  memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64+1);
   
   //free the BIO objects
   BIO_free_all(b64_salt_bio);
@@ -329,7 +331,7 @@ int pass_store_check_password(const char *username, const char *password)
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
-      memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64);
+      memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64+1);
       fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
     }
   }
@@ -347,12 +349,12 @@ int pass_store_check_password(const char *username, const char *password)
   // CONCATENATE PASSWORD AND BASE64 SALT ///
   ///////////////////////////////////////////
   int pass_len = strlen(password) * sizeof(char);
-  int pass_and_salt_len = pass_len + SALT_LEN_BASE64;
+  int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(pass_and_salt_len);
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
-  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64);
+  memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64 + 1);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
