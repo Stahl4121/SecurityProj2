@@ -190,7 +190,7 @@ int pass_store_add_user(const char *username, const char *password)
   /////////////////////////////////////
   for(int i = 0; i < (int) num_pass_out; i++) {
     if(!strcmp(username, passwords[i].username)){
-      fprintf(stderr, "A user named %s already exists!", username);
+      fprintf(stderr, "A user named \"%s\" already exists!", username);
       free(passwords);
       return -1;
     }
@@ -237,9 +237,6 @@ int pass_store_add_user(const char *username, const char *password)
   memcpy(b64_salt, bio_b64_salt, SALT_LEN_BASE64);
   b64_salt[SALT_LEN_BASE64]='\0';
 
-
-  fprintf(stderr, "ADD_SALT: \n%s\n", b64_salt);
-  
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
   ///////////////////////////////////////////
@@ -250,7 +247,6 @@ int pass_store_add_user(const char *username, const char *password)
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
   memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64 + 1);
-  fprintf(stderr, "ADDPASS&SALT: \n%s\n", pass_and_salt);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -265,8 +261,6 @@ int pass_store_add_user(const char *username, const char *password)
   memcpy(new_pass_entry.pass_hash, sha_pass_salt, SHA512_DIGEST_LENGTH);
   memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64+1);
   
-  fprintf(stderr, "ADD_HASH: \n%s\n", new_pass_entry.pass_hash);
-
   //free the BIO objects
   BIO_free_all(b64_salt_bio);
 
@@ -328,7 +322,7 @@ int pass_store_check_password(const char *username, const char *password)
   user_pass_t *passwords = NULL;
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
-  uint8_t correct_pass_hash[SHA512_DIGEST_LENGTH];
+  uint8_t correct_pass_hash[SHA512_DIGEST_LENGTH+1];
   unsigned char b64_salt[SALT_LEN_BASE64+1];
 
   ////////////////////////////////
@@ -337,15 +331,14 @@ int pass_store_check_password(const char *username, const char *password)
   for(int i = 0; i < (int) num_pass_out; i++) {
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
-      memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
+      memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH+1);
+      correct_pass_hash[SHA512_DIGEST_LENGTH] = '\0';
       memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64+1);
-      fprintf(stderr, "CHECK_SALT: \n%s\n", b64_salt);
-      fprintf(stderr, "FOUND: \n%s\n", correct_pass_hash);
     }
   }
   
   if(!username_exists){
-    fprintf(stderr, "Username %s does not exist.\n", username);
+    fprintf(stderr, "Username \"%s\" does not exist.\n", username);
     return -1;
   } 
 
@@ -367,11 +360,9 @@ int pass_store_check_password(const char *username, const char *password)
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
   ////////////////////////////////////////
-  uint8_t sha_pass_salt[SHA512_DIGEST_LENGTH];
+  uint8_t sha_pass_salt[SHA512_DIGEST_LENGTH+1];
   SHA512(pass_and_salt, pass_and_salt_len, (unsigned char*)sha_pass_salt);
-  
-  fprintf(stderr, "CHKPASS&SALT: \n%s\n", pass_and_salt);
-  fprintf(stderr, "SHAPASS: \n%s\n", sha_pass_salt);
+  sha_pass_salt[SHA512_DIGEST_LENGTH] = '\0';
 
   ////////////////////////////////////////////////////////
   // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
