@@ -117,7 +117,7 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
   if(!append) {
     FILE *tempFile = fopen(PASS_FILE_PATH, "w");              //Clear current file
     if(!tempFile){
-      fprintf(stderr, "Failed to save password store. Opening new file failed.");
+      fprintf(stderr, "Failed to save password store. Opening new file failed.\n");
       fclose(tempFile);
       return -1;
     }
@@ -327,11 +327,12 @@ int pass_store_check_password(const char *username, const char *password)
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
+      fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
     }
   }
   
   if(!username_exists){
-    fprintf(stderr, "Username %s does not exist.", username);
+    fprintf(stderr, "Username %s does not exist.\n", username);
     return -1;
   } 
 
@@ -389,6 +390,8 @@ int pass_store_check_password(const char *username, const char *password)
   uint8_t sha_pass_salt[SHA512_DIGEST_LENGTH];
   SHA512(pass_and_salt, pass_and_salt_len, (unsigned char*)sha_pass_salt);
   
+  fprintf(stderr, "CHECK: \n%s\n", sha_pass_salt);
+
   ////////////////////////////////////////////////////////
   // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
   ////////////////////////////////////////////////////////
