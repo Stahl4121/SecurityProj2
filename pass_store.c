@@ -132,38 +132,42 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
   }
 
   for(int i=0; i < (int) num_pass; i++){
-    /*
-    *   Encode Base64 encoding for storing password hash 
-    */
-
-    // Base64 filter
-    BIO *b64_bio = BIO_new(BIO_f_base64());
-    // Memory buffer sink
-    BIO *enc_bio = BIO_new(BIO_s_mem());
-    // chain the Base64 filter to the memory buffer sink
-    BIO_push(b64_bio, enc_bio);
-    // Base64 encoding by default contains new lines.
-    // Do not output new lines.
-    BIO_set_flags(b64_bio, BIO_FLAGS_BASE64_NO_NL);
-    // Input data into the Base64 filter and flush the filter.
-    BIO_write(b64_bio, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
-    BIO_flush(b64_bio);
-
-    // Get pointer and length of data in the memory buffer sink
-    char *pass_hash_ptr = NULL;
-    long data_len = BIO_get_mem_data(enc_bio, &pass_hash_ptr);
-
-    if(data_len <= 0){
-      fclose(passFile);
-      BIO_free_all(b64_bio);
-      return -1;
-    }
-
-    //Output password struct to file
-    fprintf(passFile, "%s:$6$%s$%s\n", passwords[i].username, passwords[i].salt, pass_hash_ptr);
     
-    // Finally, free the BIO objects
-    BIO_free_all(b64_bio);
+    //If username is NULL (or length 0), the password will not be saved
+    if( !(passwords[i].username == NULL || (int) strlen(passwords[i].username) == 0) ){
+      /*
+      *   Encode Base64 encoding for storing password hash 
+      */
+
+      // Base64 filter
+      BIO *b64_bio = BIO_new(BIO_f_base64());
+      // Memory buffer sink
+      BIO *enc_bio = BIO_new(BIO_s_mem());
+      // chain the Base64 filter to the memory buffer sink
+      BIO_push(b64_bio, enc_bio);
+      // Base64 encoding by default contains new lines.
+      // Do not output new lines.
+      BIO_set_flags(b64_bio, BIO_FLAGS_BASE64_NO_NL);
+      // Input data into the Base64 filter and flush the filter.
+      BIO_write(b64_bio, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
+      BIO_flush(b64_bio);
+
+      // Get pointer and length of data in the memory buffer sink
+      char *pass_hash_ptr = NULL;
+      long data_len = BIO_get_mem_data(enc_bio, &pass_hash_ptr);
+
+      if(data_len <= 0){
+        fclose(passFile);
+        BIO_free_all(b64_bio);
+        return -1;
+      }
+
+      //Output password struct to file
+      fprintf(passFile, "%s:$6$%s$%s\n", passwords[i].username, passwords[i].salt, pass_hash_ptr);
+      
+      // Finally, free the BIO objects
+      BIO_free_all(b64_bio);
+    }
   }
   fclose(passFile);
 
@@ -288,6 +292,7 @@ int pass_store_remove_user(const char *username)
   user_pass_t *passwords = NULL;
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
+  int userFound = 0;
 
   ////////////////////////////////
   /// CHECK FOR GIVEN USERNAME ///
@@ -297,9 +302,15 @@ int pass_store_remove_user(const char *username)
   for(int i = 0; i < (int) num_pass_out; i++) {
     // set USERNAME to NULL in the array
     if(!strcmp(username, passwords[i].username)){
-        memset(passwords[i].username, 0, strlen(username));
-      }
+      memset(passwords[i].username, 0, strlen(username));
+      userFound = 1;
+    }
   }
+
+  if(!userFound){
+    fprintf(stderr, "There is no user \"%s\" to remove.\n", username);
+  }
+
   // resave the struct/password file
   __pass_store_save(passwords, num_pass_out, 0);
   free(passwords);
@@ -371,9 +382,9 @@ int pass_store_check_password(const char *username, const char *password)
     fprintf(stderr, "\nThat was the correct password! \n");
     free(pass_and_salt);   
     return 0;
-  } else {
+  } 
+  else {
     fprintf(stderr, "\nPassword entry is incorrect! \n");
-
   }
 
   // Finally, free the objects
