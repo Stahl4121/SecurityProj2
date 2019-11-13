@@ -38,7 +38,7 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
   FILE *pass_file = fopen(PASS_FILE_PATH, "r");
 
   if(!pass_file){
-    fprintf(stderr, "Password file does not exist, but will be created.");
+    fprintf(stderr, "Password file does not exist, but will be created.\n");
     return -1;
   }
 
