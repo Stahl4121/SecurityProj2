@@ -319,6 +319,7 @@ int pass_store_check_password(const char *username, const char *password)
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
   uint8_t correct_pass_hash[SHA512_DIGEST_LENGTH];
+  unsigned char salt[SALT_LEN];
 
   ////////////////////////////////
   /// CHECK IF USERNAME EXISTS ///
@@ -327,6 +328,7 @@ int pass_store_check_password(const char *username, const char *password)
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
+      memcpy(salt, passwords[i].salt, SALT_LEN);
       fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
     }
   }
@@ -340,16 +342,6 @@ int pass_store_check_password(const char *username, const char *password)
   /// ENCODE THE PASSWORD ///
   ///////////////////////////
 
-  //////////////////////////////////////
-  /// GENERATE THE SALT FROM RAND //////
-  //////////////////////////////////////
-  
-  // create password's salt
-  unsigned char salt[SALT_LEN];
-  if(!RAND_bytes(salt, SALT_LEN)){
-    return -1;
-  }
-  
   //////////////////////////////
   /// BASE64 ENCODE THE SALT ///
   //////////////////////////////
