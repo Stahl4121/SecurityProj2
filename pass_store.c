@@ -181,7 +181,6 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
  */
 int pass_store_add_user(const char *username, const char *password)
 {
-  int ret = 0;
   user_pass_t *passwords = NULL;
   size_t num_pass_out = 0;
   __pass_store_load(&passwords, &num_pass_out);
@@ -226,7 +225,7 @@ int pass_store_add_user(const char *username, const char *password)
   BIO_flush(b64_salt_bio);
 
   // Get pointer and length of data in the memory buffer sink
-  unsigned char b64_salt[SALT_LEN_BASE64];
+  unsigned char b64_salt[SALT_LEN_BASE64+1];
   if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)){
     fprintf(stderr, "Salt B64 generated incorrectly");
     free(passwords);
@@ -257,7 +256,7 @@ int pass_store_add_user(const char *username, const char *password)
   memset(&new_pass_entry, 0, sizeof(new_pass_entry));
   strncpy(new_pass_entry.username, username, strlen(username));
   memcpy(new_pass_entry.pass_hash, sha_pass_salt, SHA512_DIGEST_LENGTH);
-  memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64+1);
+  memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64);
   
   //free the BIO objects
   BIO_free_all(b64_salt_bio);
@@ -330,7 +329,7 @@ int pass_store_check_password(const char *username, const char *password)
     if(!strcmp(username, passwords[i].username)) { 
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
-      memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64+1);
+      memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64);
       fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
     }
   }
