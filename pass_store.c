@@ -225,16 +225,20 @@ int pass_store_add_user(const char *username, const char *password)
   BIO_flush(b64_salt_bio);
 
   // Get pointer and length of data in the memory buffer sink
-  unsigned char b64_salt[SALT_LEN_BASE64+1];
-  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &b64_salt)){
+  char* bio_b64_salt = NULL;
+  if(SALT_LEN_BASE64 != BIO_get_mem_data(enc_salt_bio, &bio_b64_salt)){
     fprintf(stderr, "Salt B64 generated incorrectly");
     free(passwords);
     BIO_free_all(b64_salt_bio);
     return -1;
   }
+  
+  char b64_salt[SALT_LEN_BASE64+1];
+  memcpy(b64_salt, bio_b64_salt, SALT_LEN_BASE64);
   b64_salt[SALT_LEN_BASE64]='\0';
 
-  //fprintf(stderr, "base64 salt: %s", b64_salt);
+
+  fprintf(stderr, "ADD_SALT: \n%s\n", b64_salt);
   
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
@@ -246,6 +250,7 @@ int pass_store_add_user(const char *username, const char *password)
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
   memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64 + 1);
+  fprintf(stderr, "ADDPASS&SALT: \n%s\n", pass_and_salt);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -260,6 +265,8 @@ int pass_store_add_user(const char *username, const char *password)
   memcpy(new_pass_entry.pass_hash, sha_pass_salt, SHA512_DIGEST_LENGTH);
   memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64+1);
   
+  fprintf(stderr, "ADD_HASH: \n%s\n", new_pass_entry.pass_hash);
+
   //free the BIO objects
   BIO_free_all(b64_salt_bio);
 
@@ -332,7 +339,8 @@ int pass_store_check_password(const char *username, const char *password)
       username_exists = 1;
       memcpy(correct_pass_hash, passwords[i].pass_hash, SHA512_DIGEST_LENGTH);
       memcpy(b64_salt, passwords[i].salt, SALT_LEN_BASE64+1);
-      fprintf(stderr, "CHECK: \n%s\n", correct_pass_hash);
+      fprintf(stderr, "CHECK_SALT: \n%s\n", b64_salt);
+      fprintf(stderr, "FOUND: \n%s\n", correct_pass_hash);
     }
   }
   
@@ -355,14 +363,15 @@ int pass_store_check_password(const char *username, const char *password)
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
   memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64 + 1);
-  
+
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
   ////////////////////////////////////////
   uint8_t sha_pass_salt[SHA512_DIGEST_LENGTH];
   SHA512(pass_and_salt, pass_and_salt_len, (unsigned char*)sha_pass_salt);
   
-  fprintf(stderr, "CHECK: \n%s\n", sha_pass_salt);
+  fprintf(stderr, "CHKPASS&SALT: \n%s\n", pass_and_salt);
+  fprintf(stderr, "SHAPASS: \n%s\n", sha_pass_salt);
 
   ////////////////////////////////////////////////////////
   // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
