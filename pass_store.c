@@ -106,7 +106,6 @@ static int __pass_store_load(user_pass_t **passwords_out, size_t *num_pass_out)
 
   //Update num_pass_out
   *num_pass_out = num_pass;
-
   return 0;
 }
 
@@ -166,7 +165,6 @@ static int __pass_store_save(user_pass_t *passwords, size_t num_pass, int append
     // Finally, free the BIO objects
     BIO_free_all(b64_bio);
   }
-  
   fclose(passFile);
 
   return 0;
@@ -203,15 +201,12 @@ int pass_store_add_user(const char *username, const char *password)
   //// GENERATE THE SALT FROM RAND //////
   ///////////////////////////////////////
 
-  // create password's salt
   unsigned char salt[SALT_LEN];
-  //fprintf(stderr, "after salt = null \n");
   if(!RAND_bytes(salt, SALT_LEN)) {
     fprintf(stderr, "Random salt generated incorrectly");
     free(passwords);
     return -1;
   }
-  //fprintf(stderr, "the salt is: %s", salt);
 
   //////////////////////////////
   /// BASE64 ENCODE THE SALT ///
@@ -250,7 +245,6 @@ int pass_store_add_user(const char *username, const char *password)
   memset(pass_and_salt, 0, pass_and_salt_len);
   memcpy(pass_and_salt, password, pass_len);
   memcpy(pass_and_salt + pass_len, b64_salt, SALT_LEN_BASE64);
-  //fprintf(stderr, "concatenated password and salt: %s", pass_and_salt);
   
   ////////////////////////////////////////
   /// SHA 512 PASSWORD AND BASE64 SALT ///
@@ -261,9 +255,6 @@ int pass_store_add_user(const char *username, const char *password)
   user_pass_t new_pass_entry;
   // clear out the memory of the new struct
   memset(&new_pass_entry, 0, sizeof(new_pass_entry));
-  // use strncpy for username
-  // use bio to copy the salt
-  // use mem copy for password hash
   strncpy(new_pass_entry.username, username, strlen(username));
   memcpy(new_pass_entry.pass_hash, sha_pass_salt, SHA512_DIGEST_LENGTH);
   memcpy(new_pass_entry.salt, b64_salt, SALT_LEN_BASE64+1);
@@ -273,7 +264,6 @@ int pass_store_add_user(const char *username, const char *password)
 
   ///////////////////////////////////////////////////
   /// NEED TO ADD new_pass_entry TO **passwords /////
-  /// AND NEED TO ADD THE STRING BELOW TO THE TXT ///
   ///////////////////////////////////////////////////
   
   __pass_store_save(&new_pass_entry, 1, 1);
