@@ -240,7 +240,7 @@ int pass_store_add_user(const char *username, const char *password)
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
   ///////////////////////////////////////////
-  int pass_len = strlen(password) * sizeof(char);
+  int pass_len = strlen(password);
   int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(pass_and_salt_len);
@@ -349,7 +349,7 @@ int pass_store_check_password(const char *username, const char *password)
   ///////////////////////////////////////////
   // CONCATENATE PASSWORD AND BASE64 SALT ///
   ///////////////////////////////////////////
-  int pass_len = strlen(password) * sizeof(char);
+  int pass_len = strlen(password);
   int pass_and_salt_len = pass_len + SALT_LEN_BASE64 + 1;
   unsigned char *pass_and_salt;
   pass_and_salt = malloc(pass_and_salt_len);
@@ -368,11 +368,11 @@ int pass_store_check_password(const char *username, const char *password)
   // COMPARE GENERATED PASS-HASH WITH CORRECT PASS-HASH //
   ////////////////////////////////////////////////////////
   if(!strcmp((const char*)sha_pass_salt, (const char*)correct_pass_hash)) {
-    fprintf(stderr, "that was the correct password! \n");
+    fprintf(stderr, "\nThat was the correct password! \n");
     free(pass_and_salt);   
     return 0;
   } else {
-    fprintf(stderr, "password entry is incorrect! \n");
+    fprintf(stderr, "\nPassword entry is incorrect! \n");
 
   }
 
